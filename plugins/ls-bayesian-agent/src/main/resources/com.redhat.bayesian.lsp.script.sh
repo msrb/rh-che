@@ -9,10 +9,6 @@ command -v curl >/dev/null 2>&1 || { PACKAGES=${PACKAGES}" curl"; }
 test "$(id -u)" = 0 || test -f ${HOME}/is_arbitrary_user || SUDO="sudo -E"
 
 CHE_DIR=$HOME/che
-LS_DIR=${CHE_DIR}/ls-bayesian
-LS_LAUNCHER=${LS_DIR}/launch.sh
-
-AGENT_BINARIES_URI=https://msrb.fedorapeople.org/ca-lsp-server.tar
 
 
 if [ -f /etc/centos-release ]; then
@@ -30,7 +26,6 @@ fi
 MACHINE_TYPE=$(uname -m)
 
 mkdir -p ${CHE_DIR}
-mkdir -p ${LS_DIR}
 
 ########################
 ### Install packages ###
@@ -145,10 +140,25 @@ fi
 ### Install Bayesian LSP ###
 ############################
 
-# Payload is tared and base64 encoded representation of `lsp/server/out`
-echo "Deploying com.redhat.bayesian.lsp server"
-cd ${LS_DIR}
-curl -sSL ${AGENT_BINARIES_URI} | tar vxj
+LS_DIR="${CHE_DIR}/ls-bayesian"
+LS_LAUNCHER="${LS_DIR}/launch.sh"
+
+LOCAL_VERSION=$(cat ${LS_DIR}/VERSION 2>/dev/null)
+UPSTREAM_VERSION=$(curl -sSL https://raw.githubusercontent.com/msrb/component-analysis-lsp-server/master/STABLE_VERSION)
+
+AGENT_BINARIES_URI="https://github.com/msrb/component-analysis-lsp-server/releases/download/${UPSTREAM_VERSION}/ca-lsp-server.tar"
+
+if [ "$LOCAL_VERSION" != "$UPSTREAM_VERSION" ]; then
+    rm -rf ${LS_DIR}
+    mkdir -p ${LS_DIR}
+    # Payload is tared and base64 encoded representation of `lsp/server/out`
+    echo "Deploying com.redhat.bayesian.lsp server..."
+    pushd ${LS_DIR}
+    curl -sSL ${AGENT_BINARIES_URI} | tar vxj
+    popd
+fi
+
+echo "com.redhat.bayesian.lsp server is at version $UPSTREAM_VERSION"
 
 touch ${LS_LAUNCHER}
 chmod +x ${LS_LAUNCHER}
